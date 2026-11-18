@@ -69,6 +69,23 @@ Helpers: `NullValue`, `BoolValue`, `UnsignedValue`, `SignedValue`, `RealValue`,
 Unknown enumerations, object types and property identifiers decode without
 hard failure when the wire encoding is valid.
 
+## Object types and property identifiers
+
+- `ObjectType.String()` and `PropertyIdentifier.String()` return the clause 21
+  name of every value assigned through ANSI/ASHRAE 135-2024 ("analog-input",
+  "date-pattern-value", "present-value", "sc-hub-function-binding"), and
+  "ObjectType(n)" / "PropertyIdentifier(n)" for a value without one
+  (proprietary, or assigned after 135-2024, such as 135-2024cu's 4194350).
+  Values from addenda (135-2016bd to 135-2020cp) are spelled as the addendum's
+  ASN.1 writes them; `ids_sources_test.go` records the addendum of each.
+- `ParseObjectType(name)` and `ParsePropertyIdentifier(name)` are their
+  inverse: the value a standard name names, and false for any other text.
+  `ParseObjectType` also takes the joined spellings "datepattern-value",
+  "datetimepattern-value" and "timepattern-value" (41, 43, 49); `String`
+  never returns them.
+- The exported constants cover the values this module uses; the other
+  standard values have names but no constants (`ids_standard_names.go`).
+
 ## Client lifecycle
 
 ```go

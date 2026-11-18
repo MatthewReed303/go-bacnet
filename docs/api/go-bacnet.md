@@ -1443,6 +1443,14 @@ const (
 
 Common standard object types (ASHRAE 135).
 
+#### func ParseObjectType
+
+```go
+func ParseObjectType(name string) (ObjectType, bool)
+```
+
+ParseObjectType returns the object type a standard name names (the inverse of String: "analog-input" is ObjectTypeAnalogInput), and false for a name this module does not know. It also takes the joined spellings "datepattern-value", "datetimepattern-value" and "timepattern-value" that some third-party tables use for object types 41, 43 and 49.
+
 #### func (ObjectType) String
 
 ```go
@@ -1606,6 +1614,14 @@ const (
 ```
 
 Property identifiers of the Calendar, Schedule, value and Structured View objects (ASHRAE 135 clause 21 BACnetPropertyIdentifier; numbers cross-checked against bacnet-stack bacenum.h at 7a53f0a7).
+
+#### func ParsePropertyIdentifier
+
+```go
+func ParsePropertyIdentifier(name string) (PropertyIdentifier, bool)
+```
+
+ParsePropertyIdentifier returns the property identifier a standard name names (the inverse of String: "present-value" is PropertyPresentValue), and false for a name this module does not know.
 
 #### func (PropertyIdentifier) String
 

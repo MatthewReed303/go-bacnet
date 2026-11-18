@@ -11,6 +11,15 @@
 
 - `client.(*Client).WaitForeignDeviceRegistered(ctx)`: returns once the BBMD has accepted the registration, `ctx.Err()` when ctx ends first, `ErrClosed` after `Close`, and `ErrInvalidConfig` when the client is not a foreign device.
 - `bacnet.ErrNotRegistered`.
+- `ObjectType.String` and `PropertyIdentifier.String` name every value assigned through ANSI/ASHRAE 135-2024: 33 more
+  object types (loop, program, channel, lighting-output, date-pattern-value, lift, staging, audit-reporter, color …)
+  and 429 more properties, among them the BACnet/SC properties (4194304–4194327). The values up to object type 59 and
+  property 491 agree by number with Apache PLC4X's BACnet model and bacnet-stack; the later ones are spelled as the
+  addenda that assigned them (135-2016bd, bi, bj, bt; 135-2020bv, bx, ca, cc, cj, cp). Values from 135-2024cu
+  (4194350 and later) still print as their number. Who notices: code that compares `String()` output with
+  "ObjectType(n)" or "PropertyIdentifier(n)" for these values.
+- `bacnet.ParseObjectType` and `bacnet.ParsePropertyIdentifier`: a standard name to its value. `ParseObjectType` also
+  takes the joined spellings datepattern-value, datetimepattern-value and timepattern-value.
 
 ---
 
