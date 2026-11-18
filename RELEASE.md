@@ -2,8 +2,15 @@
 
 ## Unreleased
 
+### Breaking
+
+- A foreign device (`client.WithForeignDevice`) no longer sends an Original-Broadcast-NPDU on its local subnet. Its broadcasts (Who-Is, Who-Has, Who-Is-Router-To-Network, the unconfirmed services sent as a broadcast) go to its BBMD as Distribute-Broadcast-To-Network (J.2.10), and before the BBMD accepts the registration, or after it lapsed, they fail with `bacnet.ErrNotRegistered` and nothing is sent. Until v0.10.0 such a broadcast went to the local broadcast address while the registration was pending or lapsed, for example a `Discover` right after `client.New`. A device in foreign mode "shall neither execute nor initiate Original-Broadcast-NPDU BVLCs on its local IP subnet" (J.2.12; ASHRAE interpretation IC 135-2024-8). Who notices: code that broadcasts from a foreign device before the registration is accepted. Restore: call `WaitForeignDeviceRegistered(ctx)` first, or retry on `ErrNotRegistered`.
+- A foreign device drops an Original-Broadcast-NPDU it receives from its local subnet (a `foreign_device` diagnostic), for the same reason. Forwarded-NPDU from its BBMD, which carries the broadcasts of its BACnet/IP network, and Original-Unicast-NPDU are processed as before. Who notices: code that relied on `Discover` or `Devices` of a foreign device listing devices heard only on the local subnet. Restore: a foreign device sees its network only through the BBMD; to discover the local subnet as well, run a second client without `WithForeignDevice` on another local port.
+
 ### Added
 
+- `client.(*Client).WaitForeignDeviceRegistered(ctx)`: returns once the BBMD has accepted the registration, `ctx.Err()` when ctx ends first, `ErrClosed` after `Close`, and `ErrInvalidConfig` when the client is not a foreign device.
+- `bacnet.ErrNotRegistered`.
 - `ObjectType.String` and `PropertyIdentifier.String` name every value assigned through ANSI/ASHRAE 135-2024: 33 more
   object types (loop, program, channel, lighting-output, date-pattern-value, lift, staging, audit-reporter, color …)
   and 429 more properties, among them the BACnet/SC properties (4194304–4194327). The values up to object type 59 and

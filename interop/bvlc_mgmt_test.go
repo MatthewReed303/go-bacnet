@@ -60,13 +60,7 @@ func runReadFDTAfterFD(t *testing.T, image, adapter string, bbmdEnv ...string) {
 			TTL:  60 * time.Second,
 		}),
 	)
-	deadline := time.Now().Add(8 * time.Second)
-	for !c.ForeignDeviceRegistered() {
-		if time.Now().After(deadline) {
-			t.Fatal("FD registration failed")
-		}
-		time.Sleep(50 * time.Millisecond)
-	}
+	awaitForeignDevice(t, c, 8*time.Second)
 	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
 	defer cancel()
 	entries, err := c.ReadForeignDeviceTable(ctx, peer.endpoint)
@@ -167,13 +161,7 @@ func runDeleteFDTEntry(t *testing.T, image, adapter string, bbmdEnv ...string) {
 			TTL:  60 * time.Second,
 		}),
 	)
-	deadline := time.Now().Add(8 * time.Second)
-	for !fdClient.ForeignDeviceRegistered() {
-		if time.Now().After(deadline) {
-			t.Fatal("FD registration failed")
-		}
-		time.Sleep(50 * time.Millisecond)
-	}
+	awaitForeignDevice(t, fdClient, 8*time.Second)
 
 	// Use the address the BBMD recorded (not LocalEndpoint, which may be 0.0.0.0).
 	mgmt := newClientOpts(t)
