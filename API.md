@@ -209,13 +209,18 @@ send the BVLC frame to `Target.Endpoint` (the next hop).
 - `WaitForeignDeviceRegistered(ctx)` returns once the BBMD has accepted the
   registration: `ctx.Err()` when ctx ends first, `ErrClosed` after `Close`,
   `ErrInvalidConfig` when the client is not a foreign device.
-- A foreign device broadcasts through its BBMD only (Annex J.5): when
-  registered, broadcasts (Who-Is, Who-Has, Who-Is-Router-To-Network …) are sent
-  as Distribute-Broadcast-To-Network to the BBMD; before the registration is
-  accepted, or after it lapsed, a broadcast fails with `ErrNotRegistered` and
-  nothing is sent (no Original-Broadcast-NPDU on the local subnet).
+- A foreign device neither initiates nor executes an Original-Broadcast-NPDU
+  on its local subnet (J.2.12; interpretation IC 135-2024-8):
+  - when registered, broadcasts (Who-Is, Who-Has, Who-Is-Router-To-Network …)
+    are sent as Distribute-Broadcast-To-Network to the BBMD (J.2.10); before
+    the registration is accepted, or after it lapsed, a broadcast fails with
+    `ErrNotRegistered` and nothing is sent;
+  - an Original-Broadcast-NPDU received from the local subnet is dropped
+    (diag event `foreign_device`), so `Discover` and `Devices` hold no device
+    heard only there. Original-Unicast-NPDU is processed as before.
 - Forwarded-NPDU is accepted; when FD mode is active, only the configured BBMD
-  may be the immediate peer for Forwarded-NPDU.
+  may be the immediate peer for Forwarded-NPDU. The broadcasts of the
+  foreign device's network reach it this way.
 
 The client is not a BBMD and does not fail over between BBMDs. A server can be a BBMD with package `bbmd` ([BBMD](#bbmd)).
 

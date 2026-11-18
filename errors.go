@@ -36,7 +36,8 @@ var (
 	ErrInvalidConfig = errors.New("bacnet: invalid configuration")
 	// ErrNotRegistered is returned for a broadcast by a foreign device whose
 	// registration with its BBMD has not been accepted (yet, or any more):
-	// its broadcasts go through the BBMD only (Annex J.5).
+	// its broadcasts go through the BBMD only (J.2.10, J.2.12, interpretation
+	// IC 135-2024-8).
 	ErrNotRegistered = errors.New("bacnet: foreign device not registered with its BBMD")
 )
 

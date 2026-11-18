@@ -491,13 +491,7 @@ func TestCBSigmaSimForeignDevice(t *testing.T) {
 		return
 	}
 	c := newClientOpts(t, client.WithForeignDevice(client.ForeignDeviceConfig{BBMD: peer.endpoint, TTL: 60 * time.Second}))
-	deadline := time.Now().Add(8 * time.Second)
-	for !c.ForeignDeviceRegistered() {
-		if time.Now().After(deadline) {
-			t.Fatal("foreign-device registration did not succeed")
-		}
-		time.Sleep(50 * time.Millisecond)
-	}
+	awaitForeignDevice(t, c, 8*time.Second)
 	awaitOperation(t, peer, "register-foreign-device", 3*time.Second)
 	whoIsFinds(t, c, peer, dev.DeviceInstance, true) // Distribute-Broadcast-To-Network
 	ctx, cancel := withTimeout(t, 10*time.Second)
@@ -518,6 +512,13 @@ func TestCBSigmaSimForeignDeviceNAK(t *testing.T) {
 	time.Sleep(time.Second)
 	if c.ForeignDeviceRegistered() {
 		t.Fatal("registered although the BBMD answered Register-Foreign-Device NAK")
+	}
+	// Not registered: no broadcast at all, local or through the BBMD
+	// (J.2.12, IC 135-2024-8).
+	ctx, cancel := withTimeout(t, 5*time.Second)
+	defer cancel()
+	if err := c.SendWhoIs(ctx, peer.endpoint, true, client.DiscoveryOptions{}); !errors.Is(err, bacnet.ErrNotRegistered) {
+		t.Fatalf("broadcast after the NAK: %v, want ErrNotRegistered", err)
 	}
 }
 

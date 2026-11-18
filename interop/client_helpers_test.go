@@ -19,6 +19,27 @@ import (
 	"github.com/otfabric/go-bacnet/service"
 )
 
+// awaitForeignDevice waits until the peer has accepted c's foreign-device
+// registration. Before that, a broadcast fails with bacnet.ErrNotRegistered
+// and sends nothing (J.2.12, IC 135-2024-8); a fast peer may have accepted it
+// already, so a broadcast that succeeds must find c registered.
+func awaitForeignDevice(t *testing.T, c *client.Client, within time.Duration) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), within)
+	defer cancel()
+	none := uint32(bacnet.MaxObjectInstance - 1) // matches no peer device
+	err := c.SendWhoIs(ctx, bip.Endpoint{}, true, client.DiscoveryOptions{LowLimit: &none, HighLimit: &none})
+	if err != nil && !errors.Is(err, bacnet.ErrNotRegistered) {
+		t.Fatalf("broadcast before the registration: %v, want ErrNotRegistered", err)
+	}
+	if err == nil && !c.ForeignDeviceRegistered() {
+		t.Fatal("a broadcast left before the registration was accepted")
+	}
+	if err := c.WaitForeignDeviceRegistered(ctx); err != nil {
+		t.Fatalf("foreign-device registration: %v", err)
+	}
+}
+
 // interopPeer names one pinned peer stack.
 type interopPeer struct {
 	name  string

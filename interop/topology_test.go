@@ -147,13 +147,7 @@ func TestBACpypes3ForeignDeviceWhoIsReadProperty(t *testing.T) {
 		}),
 	)
 
-	deadline := time.Now().Add(8 * time.Second)
-	for !c.ForeignDeviceRegistered() {
-		if time.Now().After(deadline) {
-			t.Fatal("foreign-device registration did not succeed")
-		}
-		time.Sleep(50 * time.Millisecond)
-	}
+	awaitForeignDevice(t, c, 8*time.Second)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

@@ -252,8 +252,22 @@ func (c *Client) handlePacket(pkt InboundPacket) {
 	origin := pkt.ImmediatePeer
 	payload := msg.Payload
 	switch msg.Function {
-	case bvlc.FunctionOriginalUnicastNPDU, bvlc.FunctionOriginalBroadcastNPDU:
+	case bvlc.FunctionOriginalUnicastNPDU:
 		// origin == immediate
+	case bvlc.FunctionOriginalBroadcastNPDU:
+		// A foreign device neither initiates nor executes an
+		// Original-Broadcast-NPDU on its local subnet (J.2.12,
+		// interpretation IC 135-2024-8): that subnet is not its BACnet/IP
+		// network. Its network's broadcasts arrive from the BBMD as
+		// Forwarded-NPDU.
+		if c.fd != nil {
+			c.diag.Report(diag.Event{
+				Kind:    diag.KindForeignDevice,
+				Message: "local Original-Broadcast-NPDU ignored (foreign device)",
+				Fields:  map[string]any{"from": pkt.ImmediatePeer.String()},
+			})
+			return
+		}
 	case bvlc.FunctionDistributeBroadcastToNetwork:
 		// DBTN is a BBMD-directed request. client is not a BBMD server.
 		c.diag.Report(diag.Event{
@@ -365,8 +379,10 @@ func (c *Client) sendNPDU(ctx context.Context, dest bip.Endpoint, broadcast bool
 	if broadcast {
 		fn = bvlc.FunctionOriginalBroadcastNPDU
 		if c.fd != nil {
-			// A foreign device broadcasts through its BBMD only (Annex J.5):
-			// not at all until the BBMD has accepted its registration.
+			// A foreign device broadcasts through its BBMD only, with
+			// Distribute-Broadcast-To-Network (J.2.10): it never initiates an
+			// Original-Broadcast-NPDU (J.2.12, IC 135-2024-8), so not at all
+			// until the BBMD has accepted its registration.
 			if !c.fd.registered() {
 				return bacnet.ErrNotRegistered
 			}

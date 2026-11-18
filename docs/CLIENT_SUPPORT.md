@@ -33,10 +33,10 @@ transport the client uses lives in package `bip` from v0.6.0
 | Capability | Client support | Interop evidence | Notes |
 |---|---|---|---|
 | Original-Unicast-NPDU | Implemented | Multi-peer | Default BACnet/IP path |
-| Original-Broadcast-NPDU | Implemented | Multi-peer | Discovery and broadcasts |
+| Original-Broadcast-NPDU | Implemented | Multi-peer | Discovery and broadcasts; not by a foreign device, which neither sends nor processes one (J.2.12, IC 135-2024-8) |
 | Forwarded-NPDU receive | Implemented | Multi-peer | BBMD forwarded frames |
 | Register-Foreign-Device | Implemented | Multi-peer | FD against bacnet-stack, BACpypes3, BACnet4J, legacy BACpypes, the cB-Sigma simulator (and its Register-FD NAK) |
-| Distribute-Broadcast-To-Network | Implemented | Multi-peer | Every broadcast of a foreign device; none before its registration is accepted (`ErrNotRegistered`) |
+| Distribute-Broadcast-To-Network | Implemented | Multi-peer | Every broadcast of a foreign device; none before its registration is accepted (`ErrNotRegistered`). A foreign device neither sends nor processes a local Original-Broadcast-NPDU (J.2.12, IC 135-2024-8) |
 | BVLC Result | Implemented | Multi-peer | FD registration + BDT/FDT management |
 | Read-Broadcast-Distribution-Table | Implemented | Multi-peer | bacnet-stack / BACpypes3 / BACnet4J / legacy BACpypes |
 | Write-Broadcast-Distribution-Table | Implemented | Single-peer | Opt-in network management; BACnet4J write OK; stack/BACpypes3/legacy BACpypes NAK asserted |

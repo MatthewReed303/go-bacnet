@@ -6,31 +6,36 @@ import (
 	"context"
 	"errors"
 	"net/netip"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/otfabric/go-bacnet"
+	"github.com/otfabric/go-bacnet/apdu"
 	"github.com/otfabric/go-bacnet/bip"
 	"github.com/otfabric/go-bacnet/bvlc"
 	"github.com/otfabric/go-bacnet/internal/clock"
 	"github.com/otfabric/go-bacnet/internal/diag"
 	"github.com/otfabric/go-bacnet/internal/virtual"
+	"github.com/otfabric/go-bacnet/npdu"
+	"github.com/otfabric/go-bacnet/service"
 )
 
 // fdClient is a foreign-device client on a virtual link, its BBMD silent until
 // the test accepts the registration.
-func fdClient(t *testing.T) (*Client, *virtual.Transport, bip.Endpoint, clock.Clock) {
+func fdClient(t *testing.T, opts ...Option) (*Client, *virtual.Transport, bip.Endpoint, *clock.Manual) {
 	t.Helper()
 	clk := clock.NewManual(time.Unix(0, 0).UTC())
 	local := bip.NewEndpoint(netip.MustParseAddrPort("10.0.0.5:47808"))
 	bbmd := bip.NewEndpoint(netip.MustParseAddrPort("10.0.0.1:47808"))
 	tr := virtual.New(local, clk, 16)
-	c, err := New(
+	c, err := New(append([]Option{
 		WithTransport(AdaptVirtual(tr)),
 		withClock(clk),
 		WithForeignDevice(ForeignDeviceConfig{BBMD: bbmd, TTL: 60 * time.Second}),
 		WithTransactionOptions(5*time.Second, 0, 0),
-	)
+	}, opts...)...)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,23 +54,85 @@ func functions(tr *virtual.Transport) []bvlc.Function {
 	return out
 }
 
+func count(fns []bvlc.Function, f bvlc.Function) int {
+	n := 0
+	for _, g := range fns {
+		if g == f {
+			n++
+		}
+	}
+	return n
+}
+
+// waitRegisterFD returns once the client has sent its n-th
+// Register-Foreign-Device. It waits for the transport's send event, not for
+// an amount of time.
+func waitRegisterFD(t *testing.T, tr *virtual.Transport, n int) {
+	t.Helper()
+	deadline := time.After(2 * time.Second)
+	for {
+		sent := tr.Sent()
+		if count(functions(tr), bvlc.FunctionRegisterForeignDevice) >= n {
+			return
+		}
+		select {
+		case <-sent:
+		case <-deadline:
+			t.Fatalf("no Register-Foreign-Device number %d", n)
+		}
+	}
+}
+
 // accept answers the client's Register-Foreign-Device with a successful
 // BVLC-Result.
 func accept(t *testing.T, tr *virtual.Transport, bbmd bip.Endpoint, clk clock.Clock) {
 	t.Helper()
-	for deadline := time.Now().Add(time.Second); time.Now().Before(deadline); time.Sleep(5 * time.Millisecond) {
-		for _, f := range functions(tr) {
-			if f == bvlc.FunctionRegisterForeignDevice {
-				result, err := bvlc.Append(nil, bvlc.Message{Function: bvlc.FunctionResult, ResultCode: 0})
-				if err != nil {
-					t.Fatal(err)
-				}
-				tr.Inject(virtual.InboundPacket{Data: result, ImmediatePeer: bbmd, ReceivedAt: clk.Now()})
-				return
-			}
+	waitRegisterFD(t, tr, 1)
+	result, err := bvlc.Append(nil, bvlc.Message{Function: bvlc.FunctionResult, ResultCode: 0})
+	if err != nil {
+		t.Fatal(err)
+	}
+	tr.Inject(virtual.InboundPacket{Data: result, ImmediatePeer: bbmd, ReceivedAt: clk.Now()})
+}
+
+// iAmFrame is an I-Am of device instance in a BVLC frame of function fn;
+// origin is the Forwarded-NPDU's original source.
+func iAmFrame(t *testing.T, fn bvlc.Function, instance uint32, origin bip.Endpoint) []byte {
+	t.Helper()
+	payload, err := service.EncodeIAm(service.IAm{
+		Device:        bacnet.ObjectIdentifier{Type: bacnet.ObjectTypeDevice, Instance: instance},
+		MaxAPDULength: 1476,
+		VendorID:      1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	n, err := npdu.Append(nil, npdu.NPDU{Version: npdu.Version1, APDU: apdu.AppendUnconfirmedRequest(nil, apdu.UnconfirmedRequest{
+		ServiceChoice: apdu.ServiceIAm,
+		Payload:       payload,
+	})})
+	if err != nil {
+		t.Fatal(err)
+	}
+	msg := bvlc.Message{Function: fn, Payload: n}
+	if fn == bvlc.FunctionForwardedNPDU {
+		msg.OriginIP = origin.Addr.Addr().As4()
+		msg.OriginPort = origin.Addr.Port()
+	}
+	frame, err := bvlc.Append(nil, msg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return frame
+}
+
+func hasDevice(c *Client, instance uint32) bool {
+	for _, d := range c.Devices() {
+		if d.Instance == instance {
+			return true
 		}
 	}
-	t.Fatal("timed out waiting for Register-Foreign-Device")
+	return false
 }
 
 func TestForeignDeviceDoesNotBroadcastLocallyBeforeRegistration(t *testing.T) {
@@ -165,5 +232,98 @@ func TestForeignDeviceReadyFollowsTheRegistration(t *testing.T) {
 	f.setRegistered(true)
 	if !isOpen() {
 		t.Fatal("not ready after registering again")
+	}
+}
+
+// A foreign device does not execute an Original-Broadcast-NPDU from its local
+// subnet (J.2.12, interpretation IC 135-2024-8): an I-Am broadcast there is
+// dropped, the same I-Am forwarded by its BBMD is taken, and an
+// Original-Unicast-NPDU is processed as before. The packets are handled in
+// order, so once the last one is seen the dropped one has been handled too.
+func TestForeignDeviceIgnoresLocalOriginalBroadcast(t *testing.T) {
+	var mu sync.Mutex
+	var dropped []string
+	c, tr, bbmd, clk := fdClient(t, WithDiagnosticFunc(func(d Diagnostic) {
+		if strings.Contains(d.Message, "Original-Broadcast-NPDU ignored") {
+			mu.Lock()
+			dropped = append(dropped, d.Kind)
+			mu.Unlock()
+		}
+	}))
+	neighbour := bip.NewEndpoint(netip.MustParseAddrPort("10.0.0.9:47808"))
+	remote := bip.NewEndpoint(netip.MustParseAddrPort("10.0.1.7:47808"))
+	for _, p := range []virtual.InboundPacket{
+		{Data: iAmFrame(t, bvlc.FunctionOriginalBroadcastNPDU, 42, bip.Endpoint{}), ImmediatePeer: neighbour},
+		{Data: iAmFrame(t, bvlc.FunctionOriginalUnicastNPDU, 44, bip.Endpoint{}), ImmediatePeer: neighbour},
+		{Data: iAmFrame(t, bvlc.FunctionForwardedNPDU, 43, remote), ImmediatePeer: bbmd},
+	} {
+		p.ReceivedAt = clk.Now()
+		tr.Inject(p)
+	}
+	waitFor(t, "the I-Am forwarded by the BBMD", func() bool { return hasDevice(c, 43) })
+	if hasDevice(c, 42) {
+		t.Fatal("an I-Am in a local Original-Broadcast-NPDU was taken by a foreign device")
+	}
+	if !hasDevice(c, 44) {
+		t.Fatal("an I-Am in an Original-Unicast-NPDU was dropped")
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if len(dropped) != 1 || dropped[0] != string(diag.KindForeignDevice) {
+		t.Fatalf("diagnostics of the dropped broadcast: %v", dropped)
+	}
+}
+
+// A client that is not a foreign device processes a local
+// Original-Broadcast-NPDU as before.
+func TestClientTakesLocalOriginalBroadcast(t *testing.T) {
+	env := newVirtualPair(t)
+	env.ClientTr.Inject(virtual.InboundPacket{
+		Data:          iAmFrame(t, bvlc.FunctionOriginalBroadcastNPDU, 42, bip.Endpoint{}),
+		ImmediatePeer: env.Peer,
+		ReceivedAt:    env.Clk.Now(),
+	})
+	waitFor(t, "the broadcast I-Am", func() bool { return hasDevice(env.Client, 42) })
+}
+
+// Today's behaviour when the Result of a renewal is lost: the client stays
+// registered while the renewal waits for its Result, and counts as not
+// registered once it times out, although the BBMD keeps the entry for TTL +
+// 30 s (J.5.2.3). Broadcasts then fail with ErrNotRegistered until a
+// registration is accepted again. This pins the behaviour; changing it is a
+// separate decision.
+func TestForeignDeviceLostRenewalResult(t *testing.T) {
+	c, tr, bbmd, clk := fdClient(t)
+	accept(t, tr, bbmd, clk)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	if err := c.WaitForeignDeviceRegistered(ctx); err != nil {
+		t.Fatal(err)
+	}
+	// Renewal at TTL/2 (30 s): step the clock until it is sent.
+	for i := 0; count(functions(tr), bvlc.FunctionRegisterForeignDevice) < 2; i++ {
+		if i > 120 {
+			t.Fatal("no renewal")
+		}
+		sent := tr.Sent()
+		clk.Advance(time.Second)
+		select {
+		case <-sent:
+		case <-time.After(10 * time.Millisecond):
+		}
+	}
+	if !c.ForeignDeviceRegistered() {
+		t.Fatal("not registered while the renewal waits for its Result")
+	}
+	// No Result: the renewal times out after the APDU timeout (5 s).
+	for i := 0; c.ForeignDeviceRegistered(); i++ {
+		if i > 120 {
+			t.Fatal("still registered after the renewal timed out")
+		}
+		clk.Advance(time.Second)
+		time.Sleep(time.Millisecond)
+	}
+	if err := c.SendWhoIs(context.Background(), c.broadcastEndpoint(), true, DiscoveryOptions{}); !errors.Is(err, bacnet.ErrNotRegistered) {
+		t.Fatalf("broadcast after the lost renewal: %v, want ErrNotRegistered", err)
 	}
 }
