@@ -50,7 +50,7 @@ func TestStandardNamesRoundTrip(t *testing.T) {
 
 func TestStandardNamesSpotChecks(t *testing.T) {
 	for v, want := range map[ObjectType]string{
-		12: "loop", 16: "program", 41: "datepattern-value", 43: "datetimepattern-value", 49: "timepattern-value",
+		12: "loop", 16: "program", 41: "date-pattern-value", 43: "datetime-pattern-value", 49: "time-pattern-value",
 		53: "channel", 54: "lighting-output", 59: "lift",
 	} {
 		if got := v.String(); got != want {

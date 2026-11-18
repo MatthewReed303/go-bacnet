@@ -7,9 +7,9 @@ import (
 	"sync"
 )
 
-// Identifier name maps are hand-reviewed against ASHRAE 135-2020 Clause 21
-// for the constants exported by this module; ids_standard_names.go names the
-// other standard values. Unknown numeric values format as "ObjectType(n)" /
+// Identifier name maps are hand-reviewed against ANSI/ASHRAE 135-2024 clause
+// 21 for the constants exported by this module; ids_standard_names.go names
+// the other standard values. Unknown numeric values format as "ObjectType(n)" /
 // "PropertyIdentifier(n)" so proprietary IDs remain usable.
 
 // String returns the standard object type name (for example "analog-input"),
@@ -42,12 +42,25 @@ var (
 	propertyByName   map[string]PropertyIdentifier
 )
 
+// objectTypeAliases are spellings ParseObjectType also takes: joined forms
+// of the pattern-value object types that some third-party tables use.
+// Clause 21 spells them with hyphens (addendum 135-2008w); String never
+// returns an alias.
+var objectTypeAliases = map[string]ObjectType{
+	"datepattern-value":     41,
+	"datetimepattern-value": 43,
+	"timepattern-value":     49,
+}
+
 func indexNames() {
 	objectTypeByName = make(map[string]ObjectType, len(objectTypeNames)+len(standardObjectTypeNames))
 	for _, m := range []map[ObjectType]string{objectTypeNames, standardObjectTypeNames} {
 		for t, s := range m {
 			objectTypeByName[s] = t
 		}
+	}
+	for s, t := range objectTypeAliases {
+		objectTypeByName[s] = t
 	}
 	propertyByName = make(map[string]PropertyIdentifier, len(propertyIdentifierNames)+len(standardPropertyIdentifierNames))
 	for _, m := range []map[PropertyIdentifier]string{propertyIdentifierNames, standardPropertyIdentifierNames} {
@@ -59,7 +72,9 @@ func indexNames() {
 
 // ParseObjectType returns the object type a standard name names (the
 // inverse of String: "analog-input" is ObjectTypeAnalogInput), and false for
-// a name this module does not know.
+// a name this module does not know. It also takes the joined spellings
+// "datepattern-value", "datetimepattern-value" and "timepattern-value" that
+// some third-party tables use for object types 41, 43 and 49.
 func ParseObjectType(name string) (ObjectType, bool) {
 	namesOnce.Do(indexNames)
 	t, ok := objectTypeByName[name]

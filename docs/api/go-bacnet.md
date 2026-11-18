@@ -1444,7 +1444,7 @@ Common standard object types (ASHRAE 135).
 func ParseObjectType(name string) (ObjectType, bool)
 ```
 
-ParseObjectType returns the object type a standard name names (the inverse of String: "analog-input" is ObjectTypeAnalogInput), and false for a name this module does not know.
+ParseObjectType returns the object type a standard name names (the inverse of String: "analog-input" is ObjectTypeAnalogInput), and false for a name this module does not know. It also takes the joined spellings "datepattern-value", "datetimepattern-value" and "timepattern-value" that some third-party tables use for object types 41, 43 and 49.
 
 #### func (ObjectType) String
 

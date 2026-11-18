@@ -2,11 +2,13 @@
 
 package bacnet
 
-// The standard names of the object types and property identifiers this module has no constant for (ANSI/ASHRAE
-// 135 clause 21, BACnetObjectType and BACnetPropertyIdentifier). Each name agrees, by number, with two independent
-// tables: Apache PLC4X's BACnet model and bacnet-stack 1.7.0 (src/bacnet/bacenum.h). Where bacnet-stack's C
-// identifier joins words differently (date-pattern-value, supported-security-algorithm) the clause 21
-// spelling is kept. Values only bacnet-stack names (newer or deleted ones) are left out.
+// The standard names of the object types and property identifiers this module has no constant for: ANSI/ASHRAE
+// 135-2024 clause 21, BACnetObjectType and BACnetPropertyIdentifier. The values up to 59 and 491 are cross-checked,
+// by number, against Apache PLC4X's BACnet model and bacnet-stack (src/bacnet/bacenum.h); the spelling is the one
+// clause 21 uses. The later values are grouped by the addendum to 135-2016 or 135-2020 that assigned them
+// (TestStandardNamesSources records the same sources). Third-party tables misspell some of them (Wireshark:
+// a bacnet-ip- prefix on 400-406, ssc-direct-connect-binding, sc-failed-connection-request, underscores in the trim properties);
+// the addenda win. Values assigned after 135-2024 (135-2024cu: 4194350 and later) are left out.
 
 var standardObjectTypeNames = map[ObjectType]string{
 	12: "loop",
@@ -22,13 +24,13 @@ var standardObjectTypeNames = map[ObjectType]string{
 	37: "credential-data-input",
 	38: "network-security",
 	39: "bitstring-value",
-	41: "datepattern-value",
+	41: "date-pattern-value",
 	42: "date-value",
-	43: "datetimepattern-value",
+	43: "datetime-pattern-value",
 	44: "datetime-value",
 	46: "large-analog-value",
 	47: "octetstring-value",
-	49: "timepattern-value",
+	49: "time-pattern-value",
 	50: "time-value",
 	51: "notification-forwarder",
 	52: "alert-enrollment",
@@ -38,6 +40,13 @@ var standardObjectTypeNames = map[ObjectType]string{
 	57: "elevator-group",
 	58: "escalator",
 	59: "lift",
+	// 135-2016bd
+	60: "staging",
+	// 135-2016bi
+	62: "audit-reporter",
+	// 135-2020ca
+	63: "color",
+	64: "color-temperature",
 }
 
 var standardPropertyIdentifierNames = map[PropertyIdentifier]string{
@@ -404,4 +413,81 @@ var standardPropertyIdentifierNames = map[PropertyIdentifier]string{
 	489: "subordinate-relationships",
 	490: "default-subordinate-relationship",
 	491: "represents",
+	// 135-2016bd
+	492: "default-present-value",
+	493: "present-stage",
+	494: "stages",
+	495: "stage-names",
+	496: "target-references",
+	// 135-2016bi
+	497: "audit-source-reporter",
+	498: "audit-level",
+	499: "audit-notification-recipient",
+	500: "audit-priority-filter",
+	501: "auditable-operations",
+	502: "delete-on-forward",
+	503: "maximum-send-delay",
+	504: "monitored-objects",
+	505: "send-now",
+	// 135-2016bt
+	506: "floor-number",
+	// 135-2016bj
+	507: "device-uuid",
+	// 135-2020cc (BACnet/SC)
+	508:     "additional-reference-ports",
+	509:     "certificate-signing-request-file",
+	510:     "command-validation-result",
+	511:     "issuer-certificate-files",
+	4194304: "max-bvlc-length-accepted",
+	4194305: "max-npdu-length-accepted",
+	4194306: "operational-certificate-file",
+	4194307: "current-health",
+	4194308: "sc-connect-wait-timeout",
+	4194309: "sc-direct-connect-accept-enable",
+	4194310: "sc-direct-connect-accept-uris",
+	4194311: "sc-direct-connect-binding",
+	4194312: "sc-direct-connect-connection-status",
+	4194313: "sc-direct-connect-initiate-enable",
+	4194314: "sc-disconnect-wait-timeout",
+	4194315: "sc-failed-connection-requests",
+	4194316: "sc-failover-hub-connection-status",
+	4194317: "sc-failover-hub-uri",
+	4194318: "sc-hub-connector-state",
+	4194319: "sc-hub-function-accept-uris",
+	4194320: "sc-hub-function-binding",
+	4194321: "sc-hub-function-connection-status",
+	4194322: "sc-hub-function-enable",
+	4194323: "sc-heartbeat-timeout",
+	4194324: "sc-primary-hub-connection-status",
+	4194325: "sc-primary-hub-uri",
+	4194326: "sc-maximum-reconnect-time",
+	4194327: "sc-minimum-reconnect-time",
+	// 135-2020ca
+	4194328: "color-override",
+	4194329: "color-reference",
+	4194330: "default-color",
+	4194331: "default-color-temperature",
+	4194332: "override-color-reference",
+	// 135-2020bv
+	4194333: "write-every-scheduled-action",
+	// errata to 135-2020ca (2023)
+	4194334: "color-command",
+	4194335: "high-end-trim",
+	4194336: "low-end-trim",
+	4194337: "trim-fade-time",
+	// 135-2020bx
+	4194338: "device-address-proxy-enable",
+	4194339: "device-address-proxy-table",
+	4194340: "device-address-proxy-timeout",
+	// 135-2020cj
+	4194341: "default-on-value",
+	4194342: "last-on-value",
+	// 135-2020cp
+	4194343: "authorization-cache",
+	4194344: "authorization-groups",
+	4194345: "authorization-policy",
+	4194346: "authorization-scope",
+	4194347: "authorization-server",
+	4194348: "authorization-status",
+	4194349: "max-proxied-i-ams-per-second",
 }
