@@ -431,3 +431,13 @@ func TestCompareTime(t *testing.T) {
 		t.Fatal("empty day")
 	}
 }
+
+// specialEventElement is one special event as an element of an exception
+// schedule.
+func specialEventElement(e bacnet.SpecialEvent) bacnet.Element {
+	v, err := bacnet.EncodeExceptionSchedule(bacnet.ExceptionSchedule{SpecialEvents: []bacnet.SpecialEvent{e}})
+	if err != nil {
+		panic(err)
+	}
+	return v.Elements[0]
+}

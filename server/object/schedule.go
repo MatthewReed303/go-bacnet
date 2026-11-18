@@ -327,102 +327,25 @@ func (s *Schedule) writeWeekly(w Write) ([]bacnet.PropertyIdentifier, error) {
 	return []bacnet.PropertyIdentifier{bacnet.PropertyWeeklySchedule}, nil
 }
 
-// specialEventElement encodes one BACnetSpecialEvent as an array element.
-func specialEventElement(e bacnet.SpecialEvent) bacnet.Element {
-	var period bacnet.Element
-	if e.PeriodObject != nil {
-		period = bacnet.Element{Context: true, TagNumber: 1, Value: bacnet.ObjectIDValue(*e.PeriodObject)}
-	} else {
-		ce, _ := calendarEntryElement(e.CalendarEntry) // validated when stored
-		period = bacnet.Element{Context: true, TagNumber: 0, Value: bacnet.ApplicationValue{Kind: bacnet.ValueConstructed, Elements: []bacnet.Element{ce}}}
-	}
-	day := bacnet.EncodeDailySchedule(bacnet.DailySchedule{DaySchedule: e.ListOfTimeValues})
-	tvs := day.Elements[0]
-	tvs.TagNumber = 2
-	return bacnet.Element{Value: bacnet.ApplicationValue{Kind: bacnet.ValueConstructed, Elements: []bacnet.Element{
-		period, tvs, {Context: true, TagNumber: 3, Value: bacnet.UnsignedValue(uint64(e.EventPriority))},
-	}}}
-}
-
 func (s *Schedule) exceptionSchedule() bacnet.ApplicationValue {
-	els := make([]bacnet.Element, len(s.exceptions))
-	for i, e := range s.exceptions {
-		els[i] = specialEventElement(e)
-	}
-	return bacnet.ApplicationValue{Kind: bacnet.ValueConstructed, Elements: els}
+	v, _ := bacnet.EncodeExceptionSchedule(bacnet.ExceptionSchedule{SpecialEvents: s.exceptions}) // validated when stored
+	return v
 }
 
 // parseSpecialEvents decodes BACnetSpecialEvent values from wire elements
 // (period, list-of-time-values [2], event-priority [3], repeated) or from
 // elements that group one event each.
 func parseSpecialEvents(els []bacnet.Element) ([]bacnet.SpecialEvent, error) {
-	var out []bacnet.SpecialEvent
-	for i := 0; i < len(els); {
-		if !els[i].Context && els[i].Value.Kind == bacnet.ValueConstructed {
-			e, err := parseSpecialEvent(els[i].Value.Elements)
-			if err != nil {
-				return nil, err
-			}
-			out = append(out, e)
-			i++
-			continue
-		}
-		if i+3 > len(els) {
-			return nil, ErrInvalidDataType
-		}
-		e, err := parseSpecialEvent(els[i : i+3])
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, e)
-		i += 3
-	}
-	return out, nil
-}
-
-func parseSpecialEvent(els []bacnet.Element) (bacnet.SpecialEvent, error) {
-	var e bacnet.SpecialEvent
-	if len(els) != 3 {
-		return e, ErrInvalidDataType
-	}
-	period, tvs, prio := els[0], els[1], els[2]
-	switch {
-	case period.Context && period.TagNumber == 0 && bacnet.IsContextConstructed(period) && len(period.Value.Elements) == 1:
-		ce, err := parseCalendarEntry(period.Value.Elements[0])
-		if err != nil {
-			return e, err
-		}
-		e.CalendarEntry = ce
-	case period.Context && period.TagNumber == 1 && !bacnet.IsContextConstructed(period):
-		id, ok := ctxObjectID(period)
-		if !ok {
-			return e, ErrInvalidDataType
-		}
-		e.PeriodObject = &id
-	default:
-		return e, ErrInvalidDataType
-	}
-	if tvs.TagNumber != 2 || !bacnet.IsContextConstructed(tvs) {
-		return e, ErrInvalidDataType
-	}
-	tvs.TagNumber = 0
-	day, err := bacnet.DecodeDailySchedule(bacnet.ApplicationValue{Kind: bacnet.ValueConstructed, Elements: []bacnet.Element{tvs}})
+	exc, err := bacnet.DecodeExceptionSchedule(bacnet.ApplicationValue{Kind: bacnet.ValueConstructed, Elements: els})
 	if err != nil {
-		return e, ErrInvalidDataType
+		return nil, ErrInvalidDataType
 	}
-	e.ListOfTimeValues = day.DaySchedule
-	if prio.TagNumber != 3 {
-		return e, ErrInvalidDataType
+	for _, e := range exc.SpecialEvents {
+		if e.EventPriority < 1 || e.EventPriority > 16 {
+			return nil, ErrValueOutOfRange
+		}
 	}
-	p, ok := ctxUnsigned(prio)
-	if !ok {
-		return e, ErrInvalidDataType
-	}
-	if p < 1 || p > 16 {
-		return e, ErrValueOutOfRange
-	}
-	e.EventPriority = uint8(p)
-	return e, nil
+	return exc.SpecialEvents, nil
 }
 
 func (s *Schedule) writeExceptions(w Write) ([]bacnet.PropertyIdentifier, error) {
