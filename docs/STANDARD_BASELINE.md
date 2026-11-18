@@ -8,8 +8,12 @@ Machine-readable edition / revision / tracked addenda:
 
 [`standard-baseline.yaml`](standard-baseline.yaml)
 
-Addenda and interpretation lists start empty until each item is checked against
-a licensed baseline copy. Update the YAML when tracking begins.
+ASHRAE has offered free read-only access to 135-2024 since August 2025
+([bacnet.org/buy](https://bacnet.org/buy/)). The published addenda
+([bacnet.org/addenda](https://bacnet.org/addenda/)), errata and
+interpretations are the citable texts: each tracked item in the YAML names the
+document it was checked against. The addenda list stays empty until an addendum
+to 135-2024 itself is tracked.
 
 The client **adapts** to remote capabilities (I-Am / Device object) and does not
 require remote devices to implement Revision 31 features.

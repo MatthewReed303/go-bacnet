@@ -730,25 +730,29 @@ func TestServerBBMDForeignDevice(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = c.Close() })
-	waitFor(t, func() bool { return len(b.FDT()) == 1 }, "foreign device registration")
-	if got := b.FDT()[0].Address; !got.Equal(c.LocalEndpoint()) {
-		t.Fatalf("FDT entry %v, client %v", got, c.LocalEndpoint())
-	}
-	// A broadcast Who-Is from the foreign device reaches the server
-	// through Distribute-Broadcast-To-Network; its broadcast I-Am comes
-	// back to the foreign device as a Forwarded-NPDU.
+	// The BBMD's BVLC-Result, not its FDT entry, makes the client
+	// registered: the entry is there before the Result arrives.
 	ctx := ctxT(t)
-	if err := c.SendWhoIs(ctx, bip.Endpoint{}, true, client.DiscoveryOptions{}); err != nil {
+	if err := c.WaitForeignDeviceRegistered(ctx); err != nil {
 		t.Fatal(err)
 	}
-	waitFor(t, func() bool {
-		for _, d := range c.Devices() {
-			if d.Instance == serverInstance {
-				return true
-			}
-		}
-		return false
-	}, "I-Am through the BBMD")
+	if fdt := b.FDT(); len(fdt) != 1 || !fdt[0].Address.Equal(c.LocalEndpoint()) {
+		t.Fatalf("FDT %+v, client %v", fdt, c.LocalEndpoint())
+	}
+	// Discover from the foreign device: its Who-Is reaches the server
+	// through Distribute-Broadcast-To-Network, and the server's broadcast
+	// I-Am comes back as a Forwarded-NPDU from the BBMD (J.2.10, J.4.5).
+	devs, err := c.Discover(ctx, client.DiscoveryOptions{Window: time.Second})
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, d := range devs {
+		found = found || d.Instance == serverInstance
+	}
+	if !found {
+		t.Fatalf("Discover through the BBMD: %+v", devs)
+	}
 	if v, err := c.ReadProperty(ctx, serverTarget(s), av1, presentValue); err != nil || v.Real != 21.5 {
 		t.Fatalf("read through BBMD peer: %v %+v", err, v)
 	}
@@ -797,5 +801,33 @@ func TestServerSegmentWindows(t *testing.T) {
 				t.Fatalf("segmented read back: %v (%d octets)", err, len(got))
 			}
 		})
+	}
+}
+
+// A foreign device whose BBMD does not answer broadcasts nothing: no
+// Original-Broadcast-NPDU on the local subnet (J.2.12, IC 135-2024-8), and
+// Discover fails with ErrNotRegistered until a registration is accepted.
+func TestForeignDeviceWithoutRegistrationDoesNotBroadcast(t *testing.T) {
+	silent, err := bip.ListenUDP(bip.UDPConfig{LocalAddr: "127.0.0.1:0"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = silent.Close() })
+	c, err := client.New(
+		client.WithLocalAddr("127.0.0.1:0"),
+		client.WithTransactionOptions(300*time.Millisecond, 0, time.Second),
+		client.WithForeignDevice(client.ForeignDeviceConfig{BBMD: silent.Local(), TTL: time.Minute}),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = c.Close() })
+	if _, err := c.Discover(ctxT(t), client.DiscoveryOptions{Window: 100 * time.Millisecond}); !errors.Is(err, bacnet.ErrNotRegistered) {
+		t.Fatalf("Discover without registration: %v, want ErrNotRegistered", err)
+	}
+	ctx, cancel := context.WithTimeout(ctxT(t), 200*time.Millisecond)
+	defer cancel()
+	if err := c.WaitForeignDeviceRegistered(ctx); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("wait without a BBMD: %v, want the context's deadline", err)
 	}
 }

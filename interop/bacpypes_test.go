@@ -899,13 +899,7 @@ func TestBACpypesBBMDTables(t *testing.T) {
 	c := newClientOpts(t,
 		client.WithForeignDevice(client.ForeignDeviceConfig{BBMD: peer.endpoint, TTL: 60 * time.Second}),
 		client.WithNetworkManagementEnabled(client.NetworkManagementConfirm))
-	deadline := time.Now().Add(8 * time.Second)
-	for !c.ForeignDeviceRegistered() {
-		if time.Now().After(deadline) {
-			t.Fatal("foreign-device registration did not succeed")
-		}
-		time.Sleep(50 * time.Millisecond)
-	}
+	awaitForeignDevice(t, c, 8*time.Second)
 	ctx, cancel := withTimeout(t, 20*time.Second)
 	defer cancel()
 	bdt, err := c.ReadBroadcastDistributionTable(ctx, peer.endpoint)

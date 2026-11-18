@@ -12,11 +12,16 @@ addenda: []
 #   notes: "summary of impact on this library"
 
 # ASHRAE interpretations tracked for implementation impact.
-interpretations: []
-# Example:
-# - id: "IC 135-2024-1"
-#   status: tracked
-#   notes: "summary"
+interpretations:
+  - id: "IC 135-2024-8"
+    approved: "2025-10-29"
+    source: "https://www.ashrae.org/file%20library/technical%20resources/standards%20and%20guidelines/standards%20intepretations/ic-135-2024-8.pdf"
+    status: implemented
+    notes: >-
+      A device in foreign mode neither initiates nor executes an Original-Broadcast-NPDU on its
+      local IP subnet (J.2.12, U.2.3). client: a foreign device broadcasts only through its BBMD
+      (ErrNotRegistered before the registration is accepted) and drops a local
+      Original-Broadcast-NPDU (v0.11.0).
 
 test_standard: "ANSI/ASHRAE 135.1-2023"
 # 135.1 addenda tracked for initiation/test mapping (STANDARD_BASELINE.md).

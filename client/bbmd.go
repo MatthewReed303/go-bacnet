@@ -37,6 +37,7 @@ type fdState struct {
 	diag   diag.Sink
 
 	reg    atomic.Bool
+	ready  chan struct{} // closed while registered; replaced when the registration lapses (mu)
 	stopCh chan struct{}
 
 	mu      sync.Mutex
@@ -76,11 +77,53 @@ func newFDState(cfg ForeignDeviceConfig, clk clock.Clock, d diag.Sink) (*fdState
 		ttlSec: uint16(sec),
 		clock:  clk,
 		diag:   d,
+		ready:  make(chan struct{}),
 		stopCh: make(chan struct{}),
 	}, nil
 }
 
 func (f *fdState) registered() bool { return f.reg.Load() }
+
+// setRegistered records the outcome of a registration and wakes the waiters
+// of WaitForeignDeviceRegistered when it was accepted.
+func (f *fdState) setRegistered(ok bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.reg.Swap(ok) == ok {
+		return
+	}
+	if ok {
+		close(f.ready)
+	} else {
+		f.ready = make(chan struct{})
+	}
+}
+
+func (f *fdState) readyCh() <-chan struct{} {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.ready
+}
+
+// WaitForeignDeviceRegistered returns once the BBMD has accepted the client's
+// foreign-device registration: at once when it is registered, ctx.Err() when
+// ctx ends first, bacnet.ErrClosed when the client is closed, and an error
+// matching bacnet.ErrInvalidConfig when the client is not a foreign device
+// (WithForeignDevice). Until then a broadcast fails with
+// bacnet.ErrNotRegistered.
+func (c *Client) WaitForeignDeviceRegistered(ctx context.Context) error {
+	if c.fd == nil {
+		return fmt.Errorf("%w: not a foreign device (WithForeignDevice)", bacnet.ErrInvalidConfig)
+	}
+	select {
+	case <-c.fd.readyCh():
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-c.closeCh:
+		return bacnet.ErrClosed
+	}
+}
 
 // ForeignDeviceRegistered reports whether foreign-device registration with the
 // configured BBMD currently succeeded. False when FD mode is not enabled.
@@ -174,7 +217,7 @@ func (c *Client) fdLoop() {
 		cancel()
 		wait := renewEvery
 		if err != nil {
-			f.reg.Store(false)
+			f.setRegistered(false)
 			f.diag.Report(diag.Event{
 				Kind:    diag.KindForeignDevice,
 				Message: "registration failed; cross-subnet broadcast degraded",
@@ -221,11 +264,11 @@ func (c *Client) registerFD(ctx context.Context) error {
 		// BACnet BVLC-Result has no attempt identifier. A delayed Result for an
 		// earlier registration to the same BBMD is indistinguishable from a
 		// Result for the current attempt once a later attempt is pending.
-		f.reg.Store(false)
+		f.setRegistered(false)
 		return bacnet.ErrTimeout
 	case code := <-a.ch:
 		if code != 0 {
-			f.reg.Store(false)
+			f.setRegistered(false)
 			err := &BVLCResultError{Code: code}
 			f.diag.Report(diag.Event{
 				Kind:    diag.KindForeignDevice,
@@ -234,7 +277,7 @@ func (c *Client) registerFD(ctx context.Context) error {
 			})
 			return err
 		}
-		f.reg.Store(true)
+		f.setRegistered(true)
 		return nil
 	}
 }
