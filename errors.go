@@ -34,6 +34,10 @@ var (
 	// ErrInvalidConfig is returned by client.New when an option carries a
 	// value the client cannot run with.
 	ErrInvalidConfig = errors.New("bacnet: invalid configuration")
+	// ErrNotRegistered is returned for a broadcast by a foreign device whose
+	// registration with its BBMD has not been accepted (yet, or any more):
+	// its broadcasts go through the BBMD only (Annex J.5).
+	ErrNotRegistered = errors.New("bacnet: foreign device not registered with its BBMD")
 )
 
 // APDUTooLargeError reports a request that would exceed the remote max APDU

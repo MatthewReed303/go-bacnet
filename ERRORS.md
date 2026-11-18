@@ -20,6 +20,7 @@ Defined in package `bacnet`:
 | `ErrLimitExceeded` | Decode / reassembly hit configured `DecodeLimits` |
 | `ErrInvalidConfig` | `client.New`, `server.New` or `bbmd.New` was given an option value it cannot run with |
 | `ErrBusy` | A BVLC management exchange is already in flight on this client |
+| `ErrNotRegistered` | A broadcast by a foreign device whose registration with its BBMD has not been accepted (yet, or any more); nothing is sent. `WaitForeignDeviceRegistered` waits for it |
 | `ErrDeviceManagementDisabled` | DeviceCommunicationControl / ReinitializeDevice without `WithDeviceManagementEnabled` |
 
 Package `client` adds `ErrNoRoute` (no known router to a remote network),

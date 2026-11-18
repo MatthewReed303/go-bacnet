@@ -364,7 +364,12 @@ func (c *Client) sendNPDU(ctx context.Context, dest bip.Endpoint, broadcast bool
 	fn := bvlc.FunctionOriginalUnicastNPDU
 	if broadcast {
 		fn = bvlc.FunctionOriginalBroadcastNPDU
-		if c.fd != nil && c.fd.registered() {
+		if c.fd != nil {
+			// A foreign device broadcasts through its BBMD only (Annex J.5):
+			// not at all until the BBMD has accepted its registration.
+			if !c.fd.registered() {
+				return bacnet.ErrNotRegistered
+			}
 			fn = bvlc.FunctionDistributeBroadcastToNetwork
 			dest = c.fd.bbmd
 			broadcast = false

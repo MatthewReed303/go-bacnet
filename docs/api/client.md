@@ -425,7 +425,7 @@ Discover broadcasts a Who-Is and collects the I-Am replies. The returned slice h
 
 With opts.Window set, Discover returns after that time with a nil error. Without it, it collects until ctx ends and returns the devices together with ctx.Err(). In both cases the devices gathered so far are returned when ctx is cancelled or the client is closed (bacnet.ErrClosed).
 
-The Who-Is is a global broadcast sent to the local IPv4 broadcast address (see WithInterface), or through the BBMD when registered as a foreign device. For peers a broadcast cannot reach, call SendWhoIs with their address and read Devices().
+The Who-Is is a global broadcast sent to the local IPv4 broadcast address (see WithInterface), or, for a foreign device, through its BBMD: a foreign device not registered yet gets bacnet.ErrNotRegistered (wait with WaitForeignDeviceRegistered first). For peers a broadcast cannot reach, call SendWhoIs with their address and read Devices().
 
 #### func (Client) DiscoverObjects
 
@@ -687,7 +687,7 @@ func (c *Client) SendWhoIs(ctx context.Context, dest bip.Endpoint, broadcast boo
 
 SendWhoIs transmits a Who-Is request.
 
-When broadcast is true, the request uses Original-Broadcast-NPDU (or Distribute-Broadcast-To-Network when registered as a foreign device). When broadcast is false, dest is addressed with Original-Unicast-NPDU — useful for Docker port-mapped peers where global broadcast cannot reach the container, or for routed remote-broadcast Who-Is via a router hop.
+When broadcast is true, the request uses Original-Broadcast-NPDU, or for a foreign device Distribute-Broadcast-To-Network once it is registered (bacnet.ErrNotRegistered before). When broadcast is false, dest is addressed with Original-Unicast-NPDU — useful for Docker port-mapped peers where global broadcast cannot reach the container, or for routed remote-broadcast Who-Is via a router hop.
 
 #### func (Client) SetEventNotificationHandler
 
@@ -792,6 +792,14 @@ func (c *Client) VTOpen(ctx context.Context, target Target, req service.VTOpenRe
 ```
 
 VTOpen performs VT-Open.
+
+#### func (Client) WaitForeignDeviceRegistered
+
+```go
+func (c *Client) WaitForeignDeviceRegistered(ctx context.Context) error
+```
+
+WaitForeignDeviceRegistered returns once the BBMD has accepted the client's foreign-device registration: at once when it is registered, ctx.Err() when ctx ends first, bacnet.ErrClosed when the client is closed, and an error matching bacnet.ErrInvalidConfig when the client is not a foreign device (WithForeignDevice). Until then a broadcast fails with bacnet.ErrNotRegistered.
 
 #### func (Client) WhoAmI
 

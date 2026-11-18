@@ -1,5 +1,21 @@
 # go-bacnet Releases
 
+## Unreleased
+
+### Fixed
+
+- A foreign device no longer broadcasts on its local subnet while its registration with the BBMD is pending or has
+  lapsed. Its broadcasts go through the BBMD only (Annex J.5); before the BBMD accepts the registration they fail with
+  `bacnet.ErrNotRegistered` and nothing is sent. Before, `Discover` right after `client.New` sent an
+  Original-Broadcast-NPDU to the local broadcast address.
+
+### Added
+
+- `client.(*Client).WaitForeignDeviceRegistered(ctx)`: returns once the BBMD has accepted the registration.
+- `bacnet.ErrNotRegistered`.
+
+---
+
 ## v0.10.0
 
 **Date:** 2026-11-16

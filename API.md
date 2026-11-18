@@ -206,8 +206,14 @@ send the BVLC frame to `Target.Endpoint` (the next hop).
   Write-BDT or Delete-FDT is pending is ambiguous on the wire and goes to
   that call; the registration then times out and is retried after one TTL.
 - `ForeignDeviceRegistered()` reports whether the last registration succeeded.
-- When registered, local broadcasts are sent as Distribute-Broadcast-To-Network
-  to the BBMD.
+- `WaitForeignDeviceRegistered(ctx)` returns once the BBMD has accepted the
+  registration: `ctx.Err()` when ctx ends first, `ErrClosed` after `Close`,
+  `ErrInvalidConfig` when the client is not a foreign device.
+- A foreign device broadcasts through its BBMD only (Annex J.5): when
+  registered, broadcasts (Who-Is, Who-Has, Who-Is-Router-To-Network …) are sent
+  as Distribute-Broadcast-To-Network to the BBMD; before the registration is
+  accepted, or after it lapsed, a broadcast fails with `ErrNotRegistered` and
+  nothing is sent (no Original-Broadcast-NPDU on the local subnet).
 - Forwarded-NPDU is accepted; when FD mode is active, only the configured BBMD
   may be the immediate peer for Forwarded-NPDU.
 

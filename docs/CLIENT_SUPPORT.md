@@ -36,7 +36,7 @@ transport the client uses lives in package `bip` from v0.6.0
 | Original-Broadcast-NPDU | Implemented | Multi-peer | Discovery and broadcasts |
 | Forwarded-NPDU receive | Implemented | Multi-peer | BBMD forwarded frames |
 | Register-Foreign-Device | Implemented | Multi-peer | FD against bacnet-stack, BACpypes3, BACnet4J, legacy BACpypes, the cB-Sigma simulator (and its Register-FD NAK) |
-| Distribute-Broadcast-To-Network | Implemented | Multi-peer | Used when foreign-device registered |
+| Distribute-Broadcast-To-Network | Implemented | Multi-peer | Every broadcast of a foreign device; none before its registration is accepted (`ErrNotRegistered`) |
 | BVLC Result | Implemented | Multi-peer | FD registration + BDT/FDT management |
 | Read-Broadcast-Distribution-Table | Implemented | Multi-peer | bacnet-stack / BACpypes3 / BACnet4J / legacy BACpypes |
 | Write-Broadcast-Distribution-Table | Implemented | Single-peer | Opt-in network management; BACnet4J write OK; stack/BACpypes3/legacy BACpypes NAK asserted |
