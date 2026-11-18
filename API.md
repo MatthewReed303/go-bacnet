@@ -66,6 +66,13 @@ Helpers: `NullValue`, `BoolValue`, `UnsignedValue`, `SignedValue`, `RealValue`,
 `DoubleValue`, `EnumValue`, `ObjectIDValue`, plus `AsReal` / `AsUnsigned` /
 `AsBool` / `AsObjectID`.
 
+Constructed types have codecs: `EncodeDateRange` / `DecodeDateRange`,
+`EncodeDateTime` / `DecodeDateTime`, `EncodeCalendarEntry` /
+`DecodeCalendarEntry`, `EncodeDailySchedule` / `DecodeDailySchedule`,
+`EncodeWeeklySchedule` / `DecodeWeeklySchedule`, `EncodeExceptionSchedule` /
+`DecodeExceptionSchedule` (a Schedule's Exception_Schedule, as ReadProperty
+returns it and WriteProperty takes it) and `EncodeHostNPort` / `DecodeHostNPort`.
+
 Unknown enumerations, object types and property identifiers decode without
 hard failure when the wire encoding is valid.
 
@@ -135,6 +142,13 @@ the device announced in its I-Am, or 480 octets if it was never seen.
 Responses are accepted only from the path the target describes; anything else
 is dropped and the request times out. A `Target` without a valid endpoint
 fails with `ErrMalformed` before anything is sent.
+
+The typed unconfirmed helpers (`TimeSynchronization`, `WriteGroup`,
+`UnconfirmedTextMessage` …) take a B/IP endpoint and a broadcast flag: they
+reach a device on the local network, or every device. `InvokeUnconfirmed`
+sends one unconfirmed request to a `Target`, so a device behind a router gets
+it with its network and station address in the NPDU (DNET/DADR); the payload
+comes from the service's encoder (`service.EncodeTimeSynchronization` …).
 
 ### Timeouts and cancellation
 

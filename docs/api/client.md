@@ -483,6 +483,14 @@ InvokeConfirmed is a raw confirmed-request escape hatch.
 
 Prefer typed helpers for production traffic. Default policy is non-retransmitting and outcome-unknown after send when SideEffecting is true.
 
+#### func (Client) InvokeUnconfirmed
+
+```go
+func (c *Client) InvokeUnconfirmed(ctx context.Context, target Target, serviceChoice uint8, payload []byte) error
+```
+
+InvokeUnconfirmed sends an unconfirmed request to one device. The device's station address goes in the NPDU (DNET/DADR) when it is behind a router, as for a confirmed request; the typed unconfirmed helpers take a B/IP endpoint and reach a device on the local network or a broadcast. payload is the service request (service.EncodeTimeSynchronization, EncodeWriteGroup …).
+
 #### func (Client) LifeSafetyOperation
 
 ```go

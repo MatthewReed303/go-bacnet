@@ -1,5 +1,14 @@
 # go-bacnet Releases
 
+## Unreleased
+
+### Added
+
+- `(*client.Client).InvokeUnconfirmed(ctx, target, serviceChoice, payload)` sends one unconfirmed request to a `client.Target`, with the device's network and station address in the NPDU (DNET/DADR) when it is behind a router, as a confirmed request has. The typed unconfirmed helpers (`TimeSynchronization`, `UTCTimeSynchronization`, `WriteGroup`, `UnconfirmedTextMessage`, `UnconfirmedPrivateTransfer`) take a B/IP endpoint and reach only a device on the local network or a broadcast; a gateway synchronising the clock of an MS/TP device behind a router could not address it.
+- `bacnet.EncodeExceptionSchedule` and `bacnet.DecodeExceptionSchedule`: the codec of a Schedule's Exception_Schedule (SEQUENCE OF BACnetSpecialEvent, clause 12.24.8), in the wire form ReadProperty returns and in grouped form. The server's Schedule object uses it; until now it lived unexported in `server/object`, and a client had no exported way to read or write an exception schedule as typed values.
+
+---
+
 ## v0.11.2
 
 **Date:** 2026-11-18
