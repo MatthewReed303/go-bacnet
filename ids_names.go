@@ -2,16 +2,23 @@
 
 package bacnet
 
-import "fmt"
+import (
+	"fmt"
+	"sync"
+)
 
 // Identifier name maps are hand-reviewed against ASHRAE 135-2020 Clause 21
-// for the constants exported by this module. Unknown numeric values format as
-// "ObjectType(n)" / "PropertyIdentifier(n)" so proprietary IDs remain usable.
+// for the constants exported by this module; ids_standard_names.go names the
+// other standard values. Unknown numeric values format as "ObjectType(n)" /
+// "PropertyIdentifier(n)" so proprietary IDs remain usable.
 
 // String returns the standard object type name (for example "analog-input"),
 // or "ObjectType(n)" for values this module does not name.
 func (t ObjectType) String() string {
 	if s, ok := objectTypeNames[t]; ok {
+		return s
+	}
+	if s, ok := standardObjectTypeNames[t]; ok {
 		return s
 	}
 	return fmt.Sprintf("ObjectType(%d)", uint16(t))
@@ -23,7 +30,49 @@ func (p PropertyIdentifier) String() string {
 	if s, ok := propertyIdentifierNames[p]; ok {
 		return s
 	}
+	if s, ok := standardPropertyIdentifierNames[p]; ok {
+		return s
+	}
 	return fmt.Sprintf("PropertyIdentifier(%d)", uint32(p))
+}
+
+var (
+	namesOnce        sync.Once
+	objectTypeByName map[string]ObjectType
+	propertyByName   map[string]PropertyIdentifier
+)
+
+func indexNames() {
+	objectTypeByName = make(map[string]ObjectType, len(objectTypeNames)+len(standardObjectTypeNames))
+	for _, m := range []map[ObjectType]string{objectTypeNames, standardObjectTypeNames} {
+		for t, s := range m {
+			objectTypeByName[s] = t
+		}
+	}
+	propertyByName = make(map[string]PropertyIdentifier, len(propertyIdentifierNames)+len(standardPropertyIdentifierNames))
+	for _, m := range []map[PropertyIdentifier]string{propertyIdentifierNames, standardPropertyIdentifierNames} {
+		for p, s := range m {
+			propertyByName[s] = p
+		}
+	}
+}
+
+// ParseObjectType returns the object type a standard name names (the
+// inverse of String: "analog-input" is ObjectTypeAnalogInput), and false for
+// a name this module does not know.
+func ParseObjectType(name string) (ObjectType, bool) {
+	namesOnce.Do(indexNames)
+	t, ok := objectTypeByName[name]
+	return t, ok
+}
+
+// ParsePropertyIdentifier returns the property identifier a standard name
+// names (the inverse of String: "present-value" is PropertyPresentValue), and
+// false for a name this module does not know.
+func ParsePropertyIdentifier(name string) (PropertyIdentifier, bool) {
+	namesOnce.Do(indexNames)
+	p, ok := propertyByName[name]
+	return p, ok
 }
 
 var objectTypeNames = map[ObjectType]string{

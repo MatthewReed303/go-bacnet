@@ -69,6 +69,17 @@ Helpers: `NullValue`, `BoolValue`, `UnsignedValue`, `SignedValue`, `RealValue`,
 Unknown enumerations, object types and property identifiers decode without
 hard failure when the wire encoding is valid.
 
+## Object types and property identifiers
+
+- `ObjectType.String()` and `PropertyIdentifier.String()` return the clause 21
+  name of every standard value ("analog-input", "datepattern-value",
+  "present-value"), and "ObjectType(n)" / "PropertyIdentifier(n)" for a value
+  without one (proprietary, or newer than the table).
+- `ParseObjectType(name)` and `ParsePropertyIdentifier(name)` are their
+  inverse: the value a standard name names, and false for any other text.
+- The exported constants cover the values this module uses; the other
+  standard values have names but no constants (`ids_standard_names.go`).
+
 ## Client lifecycle
 
 ```go

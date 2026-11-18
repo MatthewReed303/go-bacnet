@@ -1,5 +1,17 @@
 # go-bacnet Releases
 
+## Unreleased
+
+### Added
+
+- `ObjectType.String` and `PropertyIdentifier.String` name every standard value: 29 more object types (loop, program,
+  channel, lighting-output, the pattern values, lift, escalator …) and 363 more properties. Each name agrees by number
+  with two independent tables, Apache PLC4X's BACnet model and bacnet-stack 1.7.0; the clause 21 spelling is kept
+  where bacnet-stack's C identifier joins words differently.
+- `bacnet.ParseObjectType` and `bacnet.ParsePropertyIdentifier`: a standard name to its value.
+
+---
+
 ## v0.10.0
 
 **Date:** 2026-11-16
