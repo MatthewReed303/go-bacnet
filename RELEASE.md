@@ -4,6 +4,7 @@
 
 ### Added
 
+- `server.RequesterOf(ctx)`: a hook (`BeforeWrite`, `BeforeDelete`, `Reinitialize`, `PrivateTransfer`, `TextMessage`, `WriteGroup`) and an object learn who sent the request they are called for: its originating B/IP endpoint, the endpoint the datagram came from (a router or BBMD) and the NPDU source of a remote station. Up to v0.11.2 an application could not tell which client wrote a property.
 - `object.Value.SetReliability`: the CharacterString, Integer and Positive Integer Value objects take a Reliability from the application, as `Point.SetReliability` does, and set the fault flag of Status_Flags (in COV notifications too) while it is not no-fault-detected. Up to v0.11.2 their Reliability was always no-fault-detected, so an application could not mark such a value as unreliable.
 
 ---

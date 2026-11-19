@@ -285,6 +285,34 @@ type RecipientLimits struct {
 
 RecipientLimits bound what the server keeps and holds for the recipients of its notifications. A zero field keeps its default.
 
+### type Requester
+
+```go
+type Requester struct {
+	// Endpoint is the B/IP node that originated the request: the
+	// Forwarded-NPDU's originating address for a request a BBMD forwarded,
+	// else the node that sent the datagram.
+	Endpoint bip.Endpoint
+	// Via is the B/IP node the datagram came from: a router or a BBMD for
+	// remote and forwarded traffic, else Endpoint.
+	Via bip.Endpoint
+	// Source is the NPDU source (SNET/SADR) of a station on another
+	// network, reached through the router at Via; the zero Address for a
+	// local station.
+	Source bacnet.Address
+}
+```
+
+Requester is where a request the server is executing came from.
+
+#### func RequesterOf
+
+```go
+func RequesterOf(ctx context.Context) (r Requester, ok bool)
+```
+
+RequesterOf returns the requester of the request whose context ctx is: the context Hooks and objects are called with while the server executes a confirmed or unconfirmed request. ok is false for any other context (a Schedule's write from the housekeeping goroutine, for example).
+
 ### type SegmentLimits
 
 ```go

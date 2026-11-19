@@ -626,6 +626,12 @@ states START_BACKUP to ABORT_RESTORE get services/service-request-denied);
 service is not advertised and a confirmed request gets Reject
 unrecognized-service.
 
+`server.RequesterOf(ctx)` names who sent the request a hook or an object
+is called for: the originating B/IP node (the Forwarded-NPDU's origin for a
+request a BBMD forwarded), the node the datagram came from, and the NPDU
+source of a station behind a router. An application that audits writes
+records it; a context of no request (a Schedule's write) has none.
+
 The contract of the application's code that the server calls: `Hooks`, the
 methods of an application `object.Object` (and of `Poller`, `FileAccessor`,
 `EventReporter`, `ListModifier`, `RangeReader`), observers registered with
