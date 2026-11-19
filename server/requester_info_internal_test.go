@@ -5,6 +5,7 @@ package server
 import (
 	"context"
 	"net/netip"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -146,5 +147,44 @@ func testRequesterOfForwardedSegmentedAndHousekeeping(t *testing.T) {
 		}
 	default:
 		t.Fatal("the Schedule did not write its reference")
+	}
+}
+
+// An unconfirmed request that finds every worker busy and no queue is
+// dropped with a queue_drop diagnostic; its hook does not run.
+func TestUnconfirmedDroppedWhenWorkersBusy(t *testing.T) {
+	inBubble(t, testUnconfirmedDroppedWhenWorkersBusy)
+}
+
+func testUnconfirmedDroppedWhenWorkersBusy(t *testing.T) {
+	release := make(chan struct{})
+	var mu sync.Mutex
+	var groups []uint32
+	h := newHarness(t, WithWorkers(1, 0), WithHooks(Hooks{WriteGroup: func(_ context.Context, w service.WriteGroup) {
+		mu.Lock()
+		groups = append(groups, w.GroupNumber)
+		mu.Unlock()
+		<-release
+	}}))
+	enc := mustEncode(t)
+	group := func(n uint32) []byte {
+		return enc(service.EncodeWriteGroup(service.WriteGroup{GroupNumber: n, WritePriority: 8,
+			ChangeList: []bacnet.Element{{Context: true, TagNumber: 0, Value: bacnet.UnsignedValue(1)}}}))
+	}
+	idle() // the worker waits for work
+	h.unconfirmed(apdu.ServiceWriteGroup, group(1))
+	idle() // the worker is in the hook
+	h.unconfirmed(apdu.ServiceWriteGroup, group(2))
+	idle()
+	drops := h.diagnostics("queue_drop")
+	if len(drops) != 1 || !strings.Contains(drops[0].Message, "unconfirmed") {
+		t.Fatalf("queue_drop diagnostics %+v", drops)
+	}
+	close(release)
+	idle()
+	mu.Lock()
+	defer mu.Unlock()
+	if len(groups) != 1 || groups[0] != 1 {
+		t.Fatalf("WriteGroup hook ran for groups %v, want only 1", groups)
 	}
 }
