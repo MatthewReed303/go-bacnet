@@ -7,6 +7,7 @@ import (
 	"net/netip"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/otfabric/go-bacnet"
 	"github.com/otfabric/go-bacnet/apdu"
@@ -69,5 +70,81 @@ func testRequesterOf(t *testing.T) {
 	}
 	if !got[2].Endpoint.Equal(clientEP) {
 		t.Fatalf("unconfirmed requester %+v", got[2])
+	}
+}
+
+// A broadcast a BBMD forwarded names its origin as Endpoint and the BBMD as
+// Via; a segmented request carries its requester to the hook once
+// reassembled; a Schedule's write from the housekeeping goroutine has none.
+func TestRequesterOfForwardedSegmentedAndHousekeeping(t *testing.T) {
+	inBubble(t, testRequesterOfForwardedSegmentedAndHousekeeping)
+}
+
+func testRequesterOfForwardedSegmentedAndHousekeeping(t *testing.T) {
+	type seen struct {
+		r  Requester
+		ok bool
+	}
+	writes := make(chan seen, 4)
+	groups := make(chan seen, 1)
+	h := newHarness(t, WithHooks(Hooks{
+		WriteGroup: func(ctx context.Context, _ service.WriteGroup) {
+			r, ok := RequesterOf(ctx)
+			groups <- seen{r, ok}
+		},
+		BeforeWrite: func(ctx context.Context, _ bacnet.ObjectIdentifier, _ object.Write) error {
+			r, ok := RequesterOf(ctx)
+			writes <- seen{r, ok}
+			return nil
+		},
+	}))
+	enc := mustEncode(t)
+	write := enc(service.EncodeWriteProperty(service.WritePropertyRequest{Object: av1, Property: pvRef, Value: bacnet.RealValue(2)}))
+
+	// A broadcast a BBMD at clientEP forwarded (Forwarded-NPDU carries
+	// broadcasts only, so an unconfirmed request) from origin.
+	origin := netip.MustParseAddrPort("192.168.7.9:47808")
+	wg := apdu.AppendUnconfirmedRequest(nil, apdu.UnconfirmedRequest{ServiceChoice: apdu.ServiceWriteGroup,
+		Payload: enc(service.EncodeWriteGroup(service.WriteGroup{GroupNumber: 1, WritePriority: 8,
+			ChangeList: []bacnet.Element{{Context: true, TagNumber: 0, Value: bacnet.UnsignedValue(1)}}}))})
+	raw := enc(npdu.Append(nil, npdu.NPDU{Version: npdu.Version1, Destination: bacnet.GlobalBroadcast(), APDU: wg}))
+	h.injectRaw(enc(bvlc.Append(nil, bvlc.Message{Function: bvlc.FunctionForwardedNPDU, OriginIP: origin.Addr().As4(), OriginPort: origin.Port(), Payload: raw})))
+	if got := <-groups; !got.ok || !got.r.Endpoint.Equal(bip.NewEndpoint(origin)) || !got.r.Via.Equal(clientEP) || got.r.Source != (bacnet.Address{}) {
+		t.Fatalf("forwarded requester %+v", got)
+	}
+
+	// A segmented WriteProperty in two segments.
+	seg := func(seq uint8, part []byte, more bool) {
+		h.request(apdu.ConfirmedRequest{SegmentedMessage: true, MoreFollows: more, MaxSegments: 7, MaxAPDU: 5,
+			InvokeID: 2, SequenceNumber: seq, ProposedWindowSize: 1, ServiceChoice: apdu.ServiceWriteProperty, Payload: part})
+	}
+	half := len(write) / 2
+	seg(0, write[:half], true)
+	h.expectType(apdu.TypeSegmentACK)
+	seg(1, write[half:], false)
+	h.expectType(apdu.TypeSegmentACK)
+	h.expectType(apdu.TypeSimpleACK)
+	if got := <-writes; !got.ok || !got.r.Endpoint.Equal(clientEP) || !got.r.Via.Equal(clientEP) {
+		t.Fatalf("segmented requester %+v", got)
+	}
+
+	// The housekeeping goroutine's Schedule write to av1.
+	sch, err := object.NewSchedule(object.ScheduleConfig{Instance: 1, Name: "sch", Default: bacnet.RealValue(5),
+		References: []object.DeviceObjectPropertyReference{{Object: av1, Property: bacnet.PropertyPresentValue}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := h.dev.Add(sch); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(1500 * time.Millisecond)
+	idle()
+	select {
+	case got := <-writes:
+		if got.ok {
+			t.Fatalf("a housekeeping write has a requester: %+v", got.r)
+		}
+	default:
+		t.Fatal("the Schedule did not write its reference")
 	}
 }

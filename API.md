@@ -628,9 +628,11 @@ unrecognized-service.
 
 `server.RequesterOf(ctx)` names who sent the request a hook or an object
 is called for: the originating B/IP node (the Forwarded-NPDU's origin for a
-request a BBMD forwarded), the node the datagram came from, and the NPDU
-source of a station behind a router. An application that audits writes
-records it; a context of no request (a Schedule's write) has none.
+broadcast a BBMD forwarded; the router for a station on another network),
+the node the datagram came from, and the NPDU source of a station behind a
+router. An application that audits writes records it; a context of no
+request (a Schedule's write from the housekeeping goroutine) has none.
+`TimeSync` takes no context and has no requester.
 
 The contract of the application's code that the server calls: `Hooks`, the
 methods of an application `object.Object` (and of `Poller`, `FileAccessor`,

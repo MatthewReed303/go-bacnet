@@ -12,8 +12,9 @@ import (
 // Requester is where a request the server is executing came from.
 type Requester struct {
 	// Endpoint is the B/IP node that originated the request: the
-	// Forwarded-NPDU's originating address for a request a BBMD forwarded,
-	// else the node that sent the datagram.
+	// Forwarded-NPDU's originating address for a broadcast a BBMD
+	// forwarded, else the node that sent the datagram. For a station on
+	// another network that is its router; the station is Source.
 	Endpoint bip.Endpoint
 	// Via is the B/IP node the datagram came from: a router or a BBMD for
 	// remote and forwarded traffic, else Endpoint.
@@ -32,8 +33,9 @@ func withRequester(ctx context.Context, p peer) context.Context {
 
 // RequesterOf returns the requester of the request whose context ctx is: the
 // context Hooks and objects are called with while the server executes a
-// confirmed or unconfirmed request. ok is false for any other context (a
-// Schedule's write from the housekeeping goroutine, for example).
+// confirmed or unconfirmed request, a segmented one once reassembled. ok is
+// false for any other context (a Schedule's write from the housekeeping
+// goroutine, for example).
 func RequesterOf(ctx context.Context) (r Requester, ok bool) {
 	r, ok = ctx.Value(requesterKey{}).(Requester)
 	return r, ok
