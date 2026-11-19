@@ -1,5 +1,13 @@
 # go-bacnet Releases
 
+## Unreleased
+
+### Added
+
+- `object.Value.SetReliability`: the CharacterString, Integer and Positive Integer Value objects take a Reliability from the application, as `Point.SetReliability` does, and set the fault flag of Status_Flags (in COV notifications too) while it is not no-fault-detected. Up to v0.11.2 their Reliability was always no-fault-detected, so an application could not mark such a value as unreliable.
+
+---
+
 ## v0.11.2
 
 **Date:** 2026-11-18

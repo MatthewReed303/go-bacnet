@@ -608,7 +608,10 @@ special events may name a `Calendar` (`bacnet.SpecialEvent.PeriodObject`).
 
 Objects are safe for concurrent use: the application may change values
 (for example `Point.SetPresentValue`, `TrendLog.Log`) while the server reads
-them. Errors are BACnet errors made with `object.Err`; anything else is sent
+them. `Point.SetReliability` and `Value.SetReliability` mark a value the
+application can no longer vouch for (a lost sensor, a link down): anything
+but no-fault-detected sets the fault flag of Status_Flags, which COV
+subscribers receive. Errors are BACnet errors made with `object.Err`; anything else is sent
 as device/operational-problem.
 
 ### Hooks
