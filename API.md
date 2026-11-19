@@ -634,7 +634,10 @@ special events may name a `Calendar` (`bacnet.SpecialEvent.PeriodObject`).
 
 Objects are safe for concurrent use: the application may change values
 (for example `Point.SetPresentValue`, `TrendLog.Log`) while the server reads
-them. Errors are BACnet errors made with `object.Err`; anything else is sent
+them. `Point.SetReliability` and `Value.SetReliability` mark a value the
+application can no longer vouch for (a lost sensor, a link down): anything
+but no-fault-detected sets the fault flag of Status_Flags, which COV
+subscribers receive. Errors are BACnet errors made with `object.Err`; anything else is sent
 as device/operational-problem.
 
 ### Hooks
@@ -648,6 +651,14 @@ states START_BACKUP to ABORT_RESTORE get services/service-request-denied);
 `TextMessage` and `WriteGroup` are the whole service, so without them the
 service is not advertised and a confirmed request gets Reject
 unrecognized-service.
+
+`server.RequesterOf(ctx)` names who sent the request a hook or an object
+is called for: the originating B/IP node (the Forwarded-NPDU's origin for a
+broadcast a BBMD forwarded; the router for a station on another network),
+the node the datagram came from, and the NPDU source of a station behind a
+router. An application that audits writes records it; a context of no
+request (a Schedule's write from the housekeeping goroutine) has none.
+`TimeSync` takes no context and has no requester.
 
 The contract of the application's code that the server calls: `Hooks`, the
 methods of an application `object.Object` (and of `Poller`, `FileAccessor`,
