@@ -63,11 +63,6 @@ func (c *Client) deliverWhoAmI(req service.WhoAmI, src packetSource) {
 		return
 	}
 	d := WhoAmIDelivery{Request: req, Address: src.bacnetAddress, Origin: src.origin, Immediate: src.immediate}
-	if d.Address.MAC().IsZero() {
-		if addr, ok := bipMACAddress(src.origin); ok {
-			d.Address = addr
-		}
-	}
 	defer func() {
 		if rec := recover(); rec != nil {
 			c.diag.Report(diag.Event{
