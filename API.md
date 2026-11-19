@@ -439,6 +439,13 @@ answered with Reject `unrecognized-service`, a segmented one with Abort
 `segmentation-not-supported`, so the sender's transaction ends instead of
 retrying. Requests in transit to another BACnet network are ignored.
 
+A Who-Am-I (an unconfirmed request from a device that has no identity yet)
+reaches the handler of `WithWhoAmIHandler` / `SetWhoAmIHandler` with the
+device's vendor, model name and serial number and the address it came from;
+without a handler it is ignored. The handler runs on the receive path, as the
+event notification handler does. A You-Are for it goes to that address with
+`InvokeUnconfirmed` (`service.EncodeYouAre`), or as a broadcast with `YouAre`.
+
 ## COV subscription
 
 `SubscribeCOV` / `SubscribeCOVProperty` / `SubscribeCOVMultiple` return a

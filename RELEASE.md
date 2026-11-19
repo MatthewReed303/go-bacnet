@@ -5,6 +5,7 @@
 ### Added
 
 - `(*client.Client).InvokeUnconfirmed(ctx, target, serviceChoice, payload)` sends one unconfirmed request to a `client.Target`, with the device's network and station address in the NPDU (DNET/DADR) when it is behind a router, as a confirmed request has. The typed unconfirmed helpers (`TimeSynchronization`, `UTCTimeSynchronization`, `WriteGroup`, `UnconfirmedTextMessage`, `UnconfirmedPrivateTransfer`) take a B/IP endpoint and reach only a device on the local network or a broadcast; a gateway synchronising the clock of an MS/TP device behind a router could not address it.
+- `client.WithWhoAmIHandler` / `(*client.Client).SetWhoAmIHandler`: a Who-Am-I a device sends reaches a handler with its vendor, model name, serial number and source address (`WhoAmIDelivery`), so a commissioning tool can answer it with a You-Are at that address. The client sent Who-Am-I and You-Are but dropped a received Who-Am-I.
 - `bacnet.EncodeExceptionSchedule` and `bacnet.DecodeExceptionSchedule`: the codec of a Schedule's Exception_Schedule (SEQUENCE OF BACnetSpecialEvent, clause 12.24.8), in the wire form ReadProperty returns and in grouped form. The server's Schedule object uses it; until now it lived unexported in `server/object`, and a client had no exported way to read or write an exception schedule as typed values.
 
 ---

@@ -96,7 +96,7 @@ transport the client uses lives in package `bip` from v0.6.0
 |---|---|---|---|
 | Who-Is / I-Am | Implemented | Multi-peer | |
 | Who-Has / I-Have | Implemented | Multi-peer | |
-| Who-Am-I / You-Are | Implemented | Codec evidence | bacnet-stack decodes both |
+| Who-Am-I / You-Are | Implemented | Codec evidence | bacnet-stack decodes both. A received Who-Am-I reaches `WithWhoAmIHandler` with its source address (unit-tested, local and routed) |
 
 ## COV and event / alarm
 

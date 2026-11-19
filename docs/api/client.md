@@ -705,6 +705,14 @@ func (c *Client) SetEventNotificationHandler(h EventNotificationHandler)
 
 SetEventNotificationHandler installs or clears the inbound EventNotification handler. It may be called concurrently with reception.
 
+#### func (Client) SetWhoAmIHandler
+
+```go
+func (c *Client) SetWhoAmIHandler(h WhoAmIHandler)
+```
+
+SetWhoAmIHandler installs or clears the inbound Who-Am-I handler. It may be called concurrently with reception.
+
 #### func (Client) SubscribeCOV
 
 ```go
@@ -1412,6 +1420,14 @@ func WithTransport(t Transport) Option
 
 WithTransport runs the client on t instead of opening a UDP socket. The client takes ownership: Close closes t, and New closes it when construction fails.
 
+#### func WithWhoAmIHandler
+
+```go
+func WithWhoAmIHandler(h WhoAmIHandler) Option
+```
+
+WithWhoAmIHandler registers a handler for inbound Who-Am-I requests, the requests a device without a configured identity sends to be given one with You-Are. Nil disables the handler; without one a Who-Am-I is ignored.
+
 ### type OutboundPacket
 
 ```go
@@ -1729,6 +1745,29 @@ type WPMBatchOptions struct {
 ```
 
 WPMBatchOptions controls explicit WritePropertyMultiple batching.
+
+### type WhoAmIDelivery
+
+```go
+type WhoAmIDelivery struct {
+	Request   service.WhoAmI
+	Address   bacnet.Address
+	Origin    bip.Endpoint
+	Immediate bip.Endpoint
+}
+```
+
+WhoAmIDelivery is a Who-Am-I a device sent (clause 16.11): its vendor, model name and serial number, and where it came from. A You-Are for it goes to that address (InvokeUnconfirmed with Address and Immediate as the Target), or as a broadcast.
+
+### type WhoAmIHandler
+
+```go
+type WhoAmIHandler func(WhoAmIDelivery)
+```
+
+WhoAmIHandler receives decoded Who-Am-I requests.
+
+The handler runs synchronously on the receive path: it must not block and must not call Client methods that wait for a response. Handler panics are recovered so a faulty callback cannot stop reception.
 
 ### type WhoHasOptions
 
