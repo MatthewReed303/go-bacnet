@@ -71,7 +71,8 @@ Constructed types have codecs: `EncodeDateRange` / `DecodeDateRange`,
 `DecodeCalendarEntry`, `EncodeDailySchedule` / `DecodeDailySchedule`,
 `EncodeWeeklySchedule` / `DecodeWeeklySchedule`, `EncodeExceptionSchedule` /
 `DecodeExceptionSchedule` (a Schedule's Exception_Schedule, as ReadProperty
-returns it and WriteProperty takes it) and `EncodeHostNPort` / `DecodeHostNPort`.
+returns it and WriteProperty takes it; the encoder refuses an eventPriority
+outside 1..16, the decoder returns the priority a peer sent) and `EncodeHostNPort` / `DecodeHostNPort`.
 
 Unknown enumerations, object types and property identifiers decode without
 hard failure when the wire encoding is valid.
@@ -441,9 +442,13 @@ retrying. Requests in transit to another BACnet network are ignored.
 
 A Who-Am-I (an unconfirmed request from a device that has no identity yet)
 reaches the handler of `WithWhoAmIHandler` / `SetWhoAmIHandler` with the
-device's vendor, model name and serial number and the address it came from;
+device's vendor, model name and serial number and the path it came on;
 without a handler it is ignored. The handler runs on the receive path, as the
-event notification handler does. A You-Are for it goes to that address with
+event notification handler does, and a panic in it is recovered and reported
+as an `unexpected_apdu` diagnostic. `WhoAmIDelivery.Target()` addresses the
+device over that path as `DeviceObservation.Target()` does: through the router
+for a device on another network, and at the device's own B/IP address for one
+whose Who-Am-I a BBMD forwarded. A You-Are for it goes to that Target with
 `InvokeUnconfirmed` (`service.EncodeYouAre`), or as a broadcast with `YouAre`.
 
 ## COV subscription

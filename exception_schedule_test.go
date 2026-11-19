@@ -82,9 +82,85 @@ func TestExceptionScheduleMalformed(t *testing.T) {
 			t.Errorf("%s: err = %v, want ErrMalformed", name, err)
 		}
 	}
+	for _, prio := range []uint8{0, 17, 255} {
+		bad := exceptionScheduleSample()
+		bad.SpecialEvents[1].EventPriority = prio
+		if _, err := EncodeExceptionSchedule(bad); !errors.Is(err, ErrMalformed) {
+			t.Errorf("event priority %d encoded: %v", prio, err)
+		}
+	}
+	// A peer's priority outside 1..16 that fits a uint8 decodes as sent.
+	lax := withPrio(Element{Context: true, TagNumber: 3, Value: UnsignedValue(200)})
+	if got, err := DecodeExceptionSchedule(lax); err != nil || got.SpecialEvents[0].EventPriority != 200 {
+		t.Errorf("priority 200 from a peer: %+v, %v", got, err)
+	}
 	bad := exceptionScheduleSample()
 	bad.SpecialEvents[0].CalendarEntry.Choice = 9
 	if _, err := EncodeExceptionSchedule(bad); !errors.Is(err, ErrMalformed) {
 		t.Fatalf("an unknown calendar entry choice encoded: %v", err)
 	}
+}
+
+// appendElements encodes a parsed element list back to tag bytes.
+func appendElements(t *testing.T, els []Element) []byte {
+	t.Helper()
+	var out []byte
+	for _, el := range els {
+		var err error
+		if out, err = AppendTag(out, el); err != nil {
+			t.Fatalf("AppendTag: %v", err)
+		}
+	}
+	return out
+}
+
+func FuzzDecodeExceptionSchedule(f *testing.F) {
+	v, err := EncodeExceptionSchedule(exceptionScheduleSample())
+	if err != nil {
+		f.Fatal(err)
+	}
+	seed, err := AppendTag(nil, Element{Value: v})
+	if err == nil {
+		f.Add(seed)
+	}
+	var body []byte
+	for _, el := range v.Elements {
+		if body, err = AppendTag(body, el); err != nil {
+			f.Fatal(err)
+		}
+	}
+	f.Add(body)
+	f.Add([]byte{})
+	f.Add([]byte{0x0E, 0x0F})
+	f.Fuzz(func(t *testing.T, data []byte) {
+		els, _, err := ParseSequence(data, DefaultDecodeLimits(), -1)
+		if err != nil {
+			return
+		}
+		exc, err := DecodeExceptionSchedule(ApplicationValue{Kind: ValueConstructed, Elements: els})
+		if err != nil {
+			if !errors.Is(err, ErrMalformed) {
+				t.Fatalf("error %v is not ErrMalformed", err)
+			}
+			return
+		}
+		// What the decoder accepts with a valid priority, the encoder emits,
+		// and the re-encoded form decodes to the same value.
+		for _, ev := range exc.SpecialEvents {
+			if ev.EventPriority < 1 || ev.EventPriority > 16 {
+				return
+			}
+		}
+		again, err := EncodeExceptionSchedule(exc)
+		if err != nil {
+			t.Fatalf("re-encode: %v", err)
+		}
+		round, err := DecodeExceptionSchedule(again)
+		if err != nil {
+			t.Fatalf("decode of re-encoded % X: %v", appendElements(t, again.Elements), err)
+		}
+		if !reflect.DeepEqual(round, exc) {
+			t.Fatalf("round trip:\n got %+v\nwant %+v", round, exc)
+		}
+	})
 }

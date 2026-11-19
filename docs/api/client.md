@@ -1750,14 +1750,27 @@ WPMBatchOptions controls explicit WritePropertyMultiple batching.
 
 ```go
 type WhoAmIDelivery struct {
-	Request   service.WhoAmI
-	Address   bacnet.Address
+	Request service.WhoAmI
+	// Address is the sender's BACnet address: its network and station
+	// address behind a router, else its B/IP address on the local network.
+	Address bacnet.Address
+	// Origin is the B/IP node that sent the request (the Forwarded-NPDU's
+	// origin when a BBMD forwarded it); Immediate is the node the datagram
+	// came from (a router or a BBMD, else Origin).
 	Origin    bip.Endpoint
 	Immediate bip.Endpoint
 }
 ```
 
-WhoAmIDelivery is a Who-Am-I a device sent (clause 16.11): its vendor, model name and serial number, and where it came from. A You-Are for it goes to that address (InvokeUnconfirmed with Address and Immediate as the Target), or as a broadcast.
+WhoAmIDelivery is a Who-Am-I a device sent: its vendor, model name and serial number, and where it came from. A You-Are for it goes to Target() with InvokeUnconfirmed, or as a broadcast with YouAre.
+
+#### func (WhoAmIDelivery) Target
+
+```go
+func (d WhoAmIDelivery) Target() Target
+```
+
+Target addresses the sender over the path its request came on, as DeviceObservation.Target does: through the router for a station on another network, at its own B/IP address for one a BBMD forwarded.
 
 ### type WhoAmIHandler
 

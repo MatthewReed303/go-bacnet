@@ -765,7 +765,7 @@ EncodeDateTime encodes DateTime as date+time application tags.
 func EncodeExceptionSchedule(s ExceptionSchedule) (ApplicationValue, error)
 ```
 
-EncodeExceptionSchedule encodes a BACnetExceptionSchedule (SEQUENCE OF BACnetSpecialEvent, clause 12.24.8) as a constructed value holding one constructed element per special event: its period (calendarEntry \[0] or calendarReference \[1]), listOfTimeValues \[2] and eventPriority \[3].
+EncodeExceptionSchedule encodes a BACnetExceptionSchedule (SEQUENCE OF BACnetSpecialEvent, clause 12.24.8) as a constructed value holding one constructed element per special event: its period (calendarEntry \[0] or calendarReference \[1]), listOfTimeValues \[2] and eventPriority \[3]. An event priority outside 1..16 (clause 12.24.8) is refused with ErrMalformed.
 
 #### func EncodeHostNPort
 
@@ -1157,7 +1157,7 @@ ExceptionSchedule is BACnetExceptionSchedule (SEQUENCE OF SpecialEvent).
 func DecodeExceptionSchedule(v ApplicationValue) (ExceptionSchedule, error)
 ```
 
-DecodeExceptionSchedule decodes a BACnetExceptionSchedule from the flat elements ReadProperty returns (period, \[2], \[3], repeated) or from a value built by EncodeExceptionSchedule (one constructed element per event). The event priority is returned as sent; clause 12.24.8 bounds it to 1..16.
+DecodeExceptionSchedule decodes a BACnetExceptionSchedule from the flat elements ReadProperty returns (period, \[2], \[3], repeated) or from a value built by EncodeExceptionSchedule (one constructed element per event). The event priority is returned as sent, so a peer's out-of-range priority can be seen; clause 12.24.8 bounds it to 1..16. One over 255 does not fit SpecialEvent and is ErrMalformed.
 
 ### type HostNPort
 

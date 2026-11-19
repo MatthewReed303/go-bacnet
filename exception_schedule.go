@@ -7,7 +7,8 @@ import "fmt"
 // EncodeExceptionSchedule encodes a BACnetExceptionSchedule (SEQUENCE OF
 // BACnetSpecialEvent, clause 12.24.8) as a constructed value holding one
 // constructed element per special event: its period (calendarEntry [0] or
-// calendarReference [1]), listOfTimeValues [2] and eventPriority [3].
+// calendarReference [1]), listOfTimeValues [2] and eventPriority [3]. An
+// event priority outside 1..16 (clause 12.24.8) is refused with ErrMalformed.
 func EncodeExceptionSchedule(s ExceptionSchedule) (ApplicationValue, error) {
 	els := make([]Element, len(s.SpecialEvents))
 	for i, e := range s.SpecialEvents {
@@ -21,6 +22,9 @@ func EncodeExceptionSchedule(s ExceptionSchedule) (ApplicationValue, error) {
 }
 
 func encodeSpecialEvent(e SpecialEvent) (Element, error) {
+	if e.EventPriority < 1 || e.EventPriority > 16 {
+		return Element{}, fmt.Errorf("%w: SpecialEvent eventPriority %d, not 1..16", ErrMalformed, e.EventPriority)
+	}
 	var period Element
 	if e.PeriodObject != nil {
 		period = Element{Context: true, TagNumber: 1, Value: ObjectIDValue(*e.PeriodObject)}
@@ -41,7 +45,9 @@ func encodeSpecialEvent(e SpecialEvent) (Element, error) {
 // DecodeExceptionSchedule decodes a BACnetExceptionSchedule from the flat
 // elements ReadProperty returns (period, [2], [3], repeated) or from a value
 // built by EncodeExceptionSchedule (one constructed element per event). The
-// event priority is returned as sent; clause 12.24.8 bounds it to 1..16.
+// event priority is returned as sent, so a peer's out-of-range priority can
+// be seen; clause 12.24.8 bounds it to 1..16. One over 255 does not fit
+// SpecialEvent and is ErrMalformed.
 func DecodeExceptionSchedule(v ApplicationValue) (ExceptionSchedule, error) {
 	if v.Kind != ValueConstructed {
 		return ExceptionSchedule{}, fmt.Errorf("%w: ExceptionSchedule is not constructed", ErrMalformed)

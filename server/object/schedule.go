@@ -336,6 +336,11 @@ func (s *Schedule) exceptionSchedule() bacnet.ApplicationValue {
 // (period, list-of-time-values [2], event-priority [3], repeated) or from
 // elements that group one event each.
 func parseSpecialEvents(els []bacnet.Element) ([]bacnet.SpecialEvent, error) {
+	// An eventPriority outside 1..16 is value-out-of-range, also one too
+	// large for the decoder (clause 12.24.8).
+	if priorityOutOfRange(els) {
+		return nil, ErrValueOutOfRange
+	}
 	exc, err := bacnet.DecodeExceptionSchedule(bacnet.ApplicationValue{Kind: bacnet.ValueConstructed, Elements: els})
 	if err != nil {
 		return nil, ErrInvalidDataType
@@ -346,6 +351,26 @@ func parseSpecialEvents(els []bacnet.Element) ([]bacnet.SpecialEvent, error) {
 		}
 	}
 	return exc.SpecialEvents, nil
+}
+
+// priorityOutOfRange reports an eventPriority [3] outside 1..16 among the
+// elements of an exception schedule, flat or grouped by event.
+func priorityOutOfRange(els []bacnet.Element) bool {
+	for _, el := range els {
+		if !el.Context && el.Value.Kind == bacnet.ValueConstructed {
+			if priorityOutOfRange(el.Value.Elements) {
+				return true
+			}
+			continue
+		}
+		if el.Context && el.TagNumber == 3 && !bacnet.IsContextConstructed(el) {
+			p, ok := ctxUnsigned(el)
+			if ok && (p < 1 || p > 16) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (s *Schedule) writeExceptions(w Write) ([]bacnet.PropertyIdentifier, error) {
